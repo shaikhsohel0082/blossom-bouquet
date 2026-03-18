@@ -2,16 +2,21 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBouquet } from '@/context/BouquetContext';
+import { encodeBouquetData } from '@/lib/shareUtils';
 import FlowerSelector from '@/components/FlowerSelector';
 import BouquetPreview from '@/components/BouquetPreview';
 import CardCustomizer from '@/components/CardCustomizer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Share2, Flower2, MessageSquare, Eye, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { BouquetData } from '@/types';
 
 export default function BuilderPage() {
-  const { currentStep, setCurrentStep, getTotalFlowers, saveBouquet, selectedFlowers, cardMessage } = useBouquet();
-  const [shareId, setShareId] = useState<string | null>(null);
+  const {
+    currentStep, setCurrentStep, getTotalFlowers, selectedFlowers,
+    cardMessage, cardTheme, recipientName, senderName, fontStyle, textColor,
+  } = useBouquet();
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -26,7 +31,6 @@ export default function BuilderPage() {
 
   const canProceed = () => {
     if (currentStep === 'flowers') return getTotalFlowers() > 0;
-    if (currentStep === 'card') return true;
     return true;
   };
 
@@ -43,22 +47,27 @@ export default function BuilderPage() {
   };
 
   const handleShare = useCallback(() => {
-    const id = saveBouquet();
-    setShareId(id);
-    toast({
-      title: 'Bouquet created! 🎉',
-      description: 'Your shareable link is ready',
-    });
-  }, [saveBouquet, toast]);
+    const data: BouquetData = {
+      id: '',
+      flowers: selectedFlowers,
+      card: { theme: cardTheme, message: cardMessage, recipientName, senderName, fontStyle, textColor },
+      createdAt: new Date().toISOString(),
+    };
+    const encoded = encodeBouquetData(data);
+    const url = `${window.location.origin}/bouquet/${encoded}`;
+    setShareUrl(url);
+    toast({ title: 'Bouquet created! 🎉', description: 'Your shareable link is ready' });
+  }, [selectedFlowers, cardTheme, cardMessage, recipientName, senderName, fontStyle, textColor, toast]);
 
   const handleCopy = useCallback(() => {
-    if (shareId) {
-      const url = `${window.location.origin}/bouquet/${shareId}`;
-      navigator.clipboard.writeText(url);
+    if (shareUrl) {
+      navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [shareId]);
+  }, [shareUrl]);
+
+  const shareId = shareUrl ? shareUrl.split('/bouquet/')[1] : null;
 
   return (
     <div className="min-h-screen bg-botanical">
@@ -72,7 +81,6 @@ export default function BuilderPage() {
             </span>
           </button>
 
-          {/* Step Indicators */}
           <div className="flex items-center gap-2">
             {steps.map((step, i) => {
               const Icon = step.icon;
@@ -96,9 +104,7 @@ export default function BuilderPage() {
                     {step.label}
                   </span>
                   {i < steps.length - 1 && (
-                    <div className={`w-8 h-0.5 mx-1 ${
-                      isCompleted ? 'bg-primary' : 'bg-border'
-                    }`} />
+                    <div className={`w-8 h-0.5 mx-1 ${isCompleted ? 'bg-primary' : 'bg-border'}`} />
                   )}
                 </button>
               );
@@ -111,44 +117,23 @@ export default function BuilderPage() {
       <main className="container max-w-5xl mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
           {currentStep === 'flowers' && (
-            <motion.div
-              key="flowers"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-            >
-              <div className="lg:col-span-2">
-                <FlowerSelector />
-              </div>
-              <div className="lg:col-span-1">
-                <div className="sticky top-24">
-                  <BouquetPreview />
-                </div>
-              </div>
+            <motion.div key="flowers" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2"><FlowerSelector /></div>
+              <div className="lg:col-span-1"><div className="sticky top-24"><BouquetPreview /></div></div>
             </motion.div>
           )}
 
           {currentStep === 'card' && (
-            <motion.div
-              key="card"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="max-w-2xl mx-auto"
-            >
+            <motion.div key="card" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              className="max-w-2xl mx-auto">
               <CardCustomizer />
             </motion.div>
           )}
 
           {currentStep === 'preview' && (
-            <motion.div
-              key="preview"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="max-w-2xl mx-auto space-y-8"
-            >
+            <motion.div key="preview" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              className="max-w-2xl mx-auto space-y-8">
               <div className="text-center">
                 <h2 className="text-2xl font-display font-semibold text-foreground">Your Gift is Ready!</h2>
                 <p className="text-muted-foreground mt-1">Review and share your bouquet & card</p>
@@ -156,57 +141,38 @@ export default function BuilderPage() {
 
               <BouquetPreview />
 
-              {/* Card Preview */}
               <div className="glass-card p-6">
                 <h3 className="font-display font-semibold text-center mb-4 text-foreground">Greeting Card</h3>
-                <div className="bg-card rounded-xl p-6 border border-border text-center">
-                  <span className="text-3xl block mb-2">
-                    {/* Access from context */}
-                    {selectedFlowers.length > 0 ? '💌' : '📝'}
-                  </span>
-                  <p className="text-foreground">{cardMessage || 'No message added'}</p>
+                <div className={`${cardTheme.bgClass} rounded-xl p-6 border border-border text-center`}>
+                  <span className="text-3xl block mb-2">{cardTheme.emoji}</span>
+                  {recipientName && <p className={`${fontStyle.className} text-sm text-muted-foreground`}>Dear {recipientName},</p>}
+                  <p className={`${fontStyle.className} text-lg mt-2`} style={{ color: textColor }}>
+                    {cardMessage || 'No message added'}
+                  </p>
+                  {senderName && <p className={`${fontStyle.className} text-sm text-muted-foreground mt-4`}>With love, {senderName}</p>}
                 </div>
               </div>
 
-              {/* Share Section */}
-              {!shareId ? (
+              {!shareUrl ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-                  <Button
-                    onClick={handleShare}
-                    className="bg-gradient-rose text-primary-foreground hover:opacity-90 px-8 py-6 text-lg rounded-xl shadow-glow-rose"
-                  >
-                    <Share2 className="w-5 h-5 mr-2" />
-                    Generate Share Link
+                  <Button onClick={handleShare}
+                    className="bg-gradient-rose text-primary-foreground hover:opacity-90 px-8 py-6 text-lg rounded-xl shadow-glow-rose">
+                    <Share2 className="w-5 h-5 mr-2" /> Generate Share Link
                   </Button>
                 </motion.div>
               ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="glass-card p-6 text-center space-y-4"
-                >
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                  className="glass-card p-6 text-center space-y-4">
                   <span className="text-4xl block">🎉</span>
                   <h3 className="font-display text-lg font-semibold text-foreground">Share Your Gift!</h3>
                   <div className="flex items-center gap-2 bg-muted rounded-lg p-3">
-                    <input
-                      readOnly
-                      value={`${window.location.origin}/bouquet/${shareId}`}
-                      className="flex-1 bg-transparent text-sm text-foreground font-mono outline-none"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopy}
-                      className="shrink-0"
-                    >
+                    <input readOnly value={shareUrl}
+                      className="flex-1 bg-transparent text-xs text-foreground font-mono outline-none truncate" />
+                    <Button variant="outline" size="sm" onClick={handleCopy} className="shrink-0">
                       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate(`/bouquet/${shareId}`)}
-                    className="mt-2"
-                  >
+                  <Button variant="outline" onClick={() => navigate(`/bouquet/${shareId}`)} className="mt-2">
                     Preview as recipient →
                   </Button>
                 </motion.div>
@@ -215,23 +181,13 @@ export default function BuilderPage() {
           )}
         </AnimatePresence>
 
-        {/* Navigation */}
         <div className="flex justify-between mt-8 max-w-2xl mx-auto">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentIndex === 0}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={handleBack} disabled={currentIndex === 0} className="gap-2">
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
-
           {currentStep !== 'preview' && (
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className="gap-2 bg-gradient-sage text-primary-foreground hover:opacity-90"
-            >
+            <Button onClick={handleNext} disabled={!canProceed()}
+              className="gap-2 bg-gradient-sage text-primary-foreground hover:opacity-90">
               Next <ArrowRight className="w-4 h-4" />
             </Button>
           )}

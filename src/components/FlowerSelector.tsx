@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useBouquet } from '@/context/BouquetContext';
 import { FLOWERS } from '@/data/constants';
+import { FLOWER_IMAGES } from '@/data/flowerImages';
 import { Minus, Plus, X } from 'lucide-react';
 
 export default function FlowerSelector() {
@@ -47,13 +48,17 @@ export default function FlowerSelector() {
               )}
 
               <div className="text-center">
-                <motion.span
-                  className="text-4xl block mb-2"
-                  animate={isSelected ? { scale: [1, 1.2, 1] } : {}}
+                <motion.div
+                  className="w-20 h-20 mx-auto mb-2 flex items-center justify-center"
+                  animate={isSelected ? { scale: [1, 1.1, 1] } : {}}
                   transition={{ duration: 0.3 }}
                 >
-                  {flower.emoji}
-                </motion.span>
+                  <img
+                    src={FLOWER_IMAGES[flower.id]}
+                    alt={flower.name}
+                    className="w-full h-full object-contain drop-shadow-md"
+                  />
+                </motion.div>
                 <h3 className="font-display font-medium text-sm text-foreground">{flower.name}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">{flower.description}</p>
               </div>
