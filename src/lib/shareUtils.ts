@@ -1,4 +1,5 @@
-import { BouquetData } from '@/types';
+import { BouquetData, SelectedFlower } from '@/types';
+import { FLOWERS, CARD_THEMES, FONT_STYLES } from '@/data/constants';
 
 /** Compress bouquet data into a URL-safe base64 string */
 export function encodeBouquetData(data: BouquetData): string {
@@ -23,16 +24,15 @@ export function decodeBouquetData(encoded: string): BouquetData | null {
     const json = decodeURIComponent(atob(encoded));
     const compact = JSON.parse(json);
 
-    // We need to import constants to reconstruct full objects
-    const { FLOWERS, CARD_THEMES, FONT_STYLES } = require('@/data/constants');
+    const flowers: SelectedFlower[] = compact.f
+      .map((f: { i: string; q: number }) => {
+        const flower = FLOWERS.find(fl => fl.id === f.i);
+        return flower ? { flower, quantity: f.q } : null;
+      })
+      .filter(Boolean) as SelectedFlower[];
 
-    const flowers = compact.f.map((f: { i: string; q: number }) => {
-      const flower = FLOWERS.find((fl: any) => fl.id === f.i);
-      return flower ? { flower, quantity: f.q } : null;
-    }).filter(Boolean);
-
-    const theme = CARD_THEMES.find((t: any) => t.id === compact.c.t) || CARD_THEMES[0];
-    const fontStyle = FONT_STYLES.find((fs: any) => fs.id === compact.c.fs) || FONT_STYLES[0];
+    const theme = CARD_THEMES.find(t => t.id === compact.c.t) || CARD_THEMES[0];
+    const fontStyle = FONT_STYLES.find(fs => fs.id === compact.c.fs) || FONT_STYLES[0];
 
     return {
       id: '',
